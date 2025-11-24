@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import Iterable, Any
+from typing import Any
+from collections.abc import Iterable
 from deel.puncc.typing import Predictor, PredictorLike, TensorLike, make_predictor
-from deel.puncc._keras import ops
+from deel.puncc import ops
 from deel.puncc.cloning import clone_model
 
 class MultiPredictorStack(Predictor):
@@ -11,7 +12,7 @@ class MultiPredictorStack(Predictor):
     def clone(self)->MultiPredictorStack:
         return MultiPredictorStack(models=[clone_model(model) for model in self.models])
 
-    def __call__(self, X:Iterable[Any])->list[TensorLike]:
+    def __call__(self, X:Iterable[Any])->TensorLike:
         return ops.stack([model(X) for model in self.models], axis=-1)
     
     def fit(self,

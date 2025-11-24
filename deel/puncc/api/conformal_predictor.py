@@ -1,9 +1,10 @@
 from __future__ import annotations
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from collections.abc import Sequence, Iterable
+from typing import Any, Callable
 import pickle
 from deel.puncc.typing import Predictor, PredictorLike, TensorLike, NCScoreFunction, PredSetFunction
-from deel.puncc._keras import ops
+from deel.puncc import ops
 from deel.puncc.api.conformalization_procedure import ConformalizationProcedure
 
 class NoModel(Predictor):
@@ -35,7 +36,7 @@ class ConformalPredictor(ConformalizationProcedure):
         return len(self._nc_scores)
     
     @property
-    def nc_scores(self) -> Iterable[float]:
+    def nc_scores(self) -> Sequence[float]:
         if self._nc_scores is None:
             raise RuntimeError("The conformal predictor has not been calibrated yet. Please use `my_predictor.calibrate(X, y)` before performing a prediction or accessing the non conformity scores.")
         return self._nc_scores
@@ -47,30 +48,30 @@ class ConformalPredictor(ConformalizationProcedure):
         return self
 
     def fit(self,
-            X_train:Iterable[Any],
-            y_train:TensorLike,
-            X_calib:Iterable[Any]|None=None,
-            y_calib:TensorLike|None=None):
+            X:Iterable[Any],
+            y:TensorLike,
+            #X_calib:Iterable[Any]|None=None,
+            #y_calib:TensorLike|None=None
+            ):
         if self.fit_function is not None:
-            self.fit_function(self.model, X_train, y_train)
+            self.fit_function(self.model, X, y)
         elif callable(getattr(self.model, "fit", None)):
-            self.model.fit(X_train, y_train)
+            self.model.fit(X, y)
         else:
             raise NotImplementedError("The model does not have a fit method and no fit_function was provided. Please provide a pretrained model or a fit_function.")
-        if X_calib is not None and y_calib is not None:
-            self.calibrate(X_calib, y_calib)
+        #if X_calib is not None and y_calib is not None:
+        #    self.calibrate(X_calib, y_calib)
         return self
 
     def predict(self,
                 X_test:Iterable[Any],
-                alpha:float,
+                alpha:TensorLike|float,
                 correction:Callable|None = None)->tuple[TensorLike, Any]:
-        # TODO : apply correction
         prediction = self.model(X_test)
         n = self.len_calibr
         weights = None
         if correction is not None:
-            alpha = correction(alpha) # TODO : add kwargs ?
+            alpha = correction(alpha) # TODO : add kwargs and other stuff that may be impacted by the correction?
         if self.weight_function is not None:
             weights = self.weight_function(X_test)
         quantile = ops.weighted_quantile(self.nc_scores, (1 - alpha) * (n + 1) / n, axis=0, weights=weights)
@@ -124,7 +125,7 @@ class AutoConformalPredictor(ConformalPredictor):
 
 class ScoreCalibrator():
     def __init__(self,
-                 nc_score_function:NCScoreFunction,
+                 nc_score_function:Callable[[Iterable[Any]], Sequence[float]],
                  weight_function:Callable[[Iterable[Any]], Iterable[float]]|None = None):
         # Definition of conformal predictor components :
         self.nc_score_function = nc_score_function
@@ -140,7 +141,7 @@ class ScoreCalibrator():
         return len(self._nc_scores)
 
     @property
-    def nc_scores(self) -> Iterable[float]:
+    def nc_scores(self) -> Sequence[float]:
         if self._nc_scores is None:
             raise RuntimeError("The conformal predictor has not been calibrated yet. Please use the `calibrate` method before performing a prediction or accessing the non conformity scores.")
         return self._nc_scores

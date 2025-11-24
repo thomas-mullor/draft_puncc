@@ -1,24 +1,25 @@
-from typing import Iterable
+from collections.abc import Sequence
 import warnings
 from deel.puncc.typing import TensorLike, NCScoreFunction
-from deel.puncc._keras import ops, random
+from deel.puncc import ops
+from deel.puncc._keras import random
 
-def _difference(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+def _difference(y_pred:TensorLike, y_true:TensorLike) -> Sequence[float]:
     return y_pred - y_true
 
 def difference()->NCScoreFunction:
     return _difference
 
-def _absolute_difference(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+def _absolute_difference(y_pred:TensorLike, y_true:TensorLike) -> Sequence[float]:
     return ops.abs(y_pred - y_true)
 
 def absolute_difference()->NCScoreFunction:
     return _absolute_difference
 
 def scaled_ad(eps:float=1e-12)-> NCScoreFunction:
-    def _scaled_ad(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
-        mean_pred = y_pred[:, 0]
-        var_pred = y_pred[:, 1]
+    def _scaled_ad(y_pred:TensorLike, y_true:TensorLike) -> Sequence[float]:
+        mean_pred = ops.take(y_pred, 0, axis=-1)
+        var_pred = ops.take(y_pred, 1, axis=-1)
         mean_abs_dev = ops.abs(mean_pred - y_true)
         if ops.any(var_pred + eps <= 0):
             warnings.warn("Warning: calibration points with MAD predictions below -eps won't be used for calibration.",
@@ -29,15 +30,15 @@ def scaled_ad(eps:float=1e-12)-> NCScoreFunction:
         return mean_abs_dev[nonneg] / (var_pred[nonneg] + eps)
     return _scaled_ad
 
-def _cqr_score(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
-    lower_pred = y_pred[:, 0]
-    upper_pred = y_pred[:, 1]
+def _cqr_score(y_pred:TensorLike, y_true:TensorLike) -> Sequence[float]:
+    lower_pred = ops.take(y_pred, 0, axis=-1)
+    upper_pred = ops.take(y_pred, 0, axis=-1)
     return ops.maximum(lower_pred - y_true, y_true - upper_pred)
 
 def cqr_score()->NCScoreFunction:
     return _cqr_score
 
-def _scaled_bbox_difference(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+def _scaled_bbox_difference(y_pred:TensorLike, y_true:TensorLike) -> Sequence[float]:
     x_min, y_min, x_max, y_max = ops.split(y_pred, 4, axis=1)
     dx = ops.abs(x_max - x_min)
     dy = ops.abs(y_max - y_min)
@@ -46,14 +47,14 @@ def _scaled_bbox_difference(y_pred:TensorLike, y_true:TensorLike) -> Iterable[fl
 def scaled_bbox_difference()->NCScoreFunction:
     return _scaled_bbox_difference
 
-def _lac_score(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+def _lac_score(y_pred:TensorLike, y_true:TensorLike) -> Sequence[float]:
     return 1 - y_pred[ops.arange(ops.shape(y_true)[0]), y_true]
 
 def lac_score()->NCScoreFunction:
     return _lac_score
 
 def raps_score(lambd:float=0, k_reg:int=1, rand:bool=True)->NCScoreFunction:
-    def _raps_score(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+    def _raps_score(y_pred:TensorLike, y_true:TensorLike) -> Sequence[float]:
         condition = y_pred>=ops.take_along_axis(y_pred, y_true[..., None], axis=-1)
         s = ops.sum(ops.where(condition, y_pred, 0), axis=-1)
         nb_cum_elems = ops.sum(condition, axis=-1)

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Any, TypeVar
-
-T = TypeVar("T")
+from typing import Any
 
 # TODO : improve this whole module (preferably before it achieves self-awareness) !
 # TODO : add better torch model cloning
@@ -37,10 +35,10 @@ class ModelCannotBeClonedError(RuntimeError):
 
 
 def clone_model(
-    model: T,
+    model: Any,
     *,
     clone_weights:bool=False
-) -> T:
+) -> Any:
     # Check if model has a "clone" or a "copy" method:
     if hasattr(model, "clone") and callable(getattr(model, "clone")):
         return model.clone()

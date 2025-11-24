@@ -24,29 +24,29 @@
 This module provides data splitting schemes.
 """
 from abc import ABC, abstractmethod
-from typing import Iterable
-from typing import List
-from typing import Tuple
+from collections.abc import Sequence
+from deel.puncc import ops
+from deel.puncc._keras import random
+from typing import TypeAlias
 
-from deel.puncc._keras import ops, random
-
+Split:TypeAlias = list[tuple[Sequence, Sequence, Sequence, Sequence]]
 
 class BaseSplitter(ABC):
     @abstractmethod
-    def split(self, X:Iterable, y:Iterable|None = None)->Tuple[Iterable]:
+    def split(self, X:Sequence, y:Sequence)->Split:
         ...
 
-    def __call__(self, *args, **kwargs) -> Tuple[Iterable]:
+    def __call__(self, *args, **kwargs) -> Split:
         return self.split(*args, **kwargs)
 
 class IdSplitter(BaseSplitter):
-    def __init__(self, X_fit: Iterable, y_fit: Iterable, X_calib: Iterable, y_calib: Iterable):
+    def __init__(self, X_fit: Sequence, y_fit: Sequence, X_calib: Sequence, y_calib: Sequence):
         self.X_fit = X_fit
         self.y_fit = y_fit
         self.X_calib = X_calib
         self.y_calib = y_calib
 
-    def split(self, X=None, y=None) -> Tuple[Iterable]:
+    def split(self, X:Sequence|None=None, y:Sequence|None=None) ->Split:
         return [(self.X_fit, self.y_fit, self.X_calib, self.y_calib)]
     
 class RandomSplitter(BaseSplitter):
@@ -56,13 +56,11 @@ class RandomSplitter(BaseSplitter):
 
     def split(
         self,
-        X: Iterable,
-        y: Iterable|None=None,
-    ) -> Tuple[Iterable]:
+        X: Sequence,
+        y: Sequence,
+    ) -> Split:
         fit_idxs = random.uniform((len(X), )) > self.ratio
         cal_idxs = ops.logical_not(fit_idxs)
-        if y is None:
-            return [(X[fit_idxs], X[cal_idxs])]
         return [(X[fit_idxs], y[fit_idxs], X[cal_idxs], y[cal_idxs])]
 
 class KFoldSplitter(BaseSplitter):
@@ -77,9 +75,9 @@ class KFoldSplitter(BaseSplitter):
 
     def split(
         self,
-        X: Iterable,
-        y: Iterable|None = None,
-    ) -> List[Tuple[Iterable]]:
+        X: Sequence,
+        y: Sequence|None = None,
+    ) -> Split:
         
         # TODO : improve this
         n_samples = len(X)

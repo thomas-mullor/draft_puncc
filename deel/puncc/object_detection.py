@@ -1,6 +1,7 @@
 from deel.puncc.api.conformal_predictor import ConformalPredictor
-from deel.puncc.typing import Predictor, PredictorLike, TensorLike, NCScoreFunction, PredSetFunction
-from typing import Callable, Iterable, Any, Literal
+from deel.puncc.typing import Predictor, PredictorLike, TensorLike
+from typing import Callable, Any, Literal
+from collections.abc import Iterable
 from deel.puncc.api.nonconformity_scores import difference, scaled_bbox_difference
 from deel.puncc.api.prediction_sets import constant_bbox, scaled_bbox
 from deel.puncc.api.correction import bonferroni
@@ -27,6 +28,6 @@ class SplitBoxWise(ConformalPredictor):
         
     def predict(self,
                 X_test:Iterable[Any],
-                alpha:float,
-                correction:Callable = bonferroni(4))->tuple[TensorLike, Any]:
+                alpha:float|TensorLike,
+                correction:Callable|None = bonferroni(4))->tuple[TensorLike, Any]:
         return super().predict(X_test, alpha, correction)

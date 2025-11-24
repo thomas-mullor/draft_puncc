@@ -1,6 +1,8 @@
 from typing import Any
 from deel.puncc.typing import TensorLike, PredSetFunction
-from deel.puncc._keras import ops, random
+from deel.puncc import ops
+from deel.puncc._keras import random
+
 
 def _constant_interval(y_pred:TensorLike, quantile:float|TensorLike) -> Any:
     lower_bounds = y_pred - quantile
@@ -12,8 +14,8 @@ def constant_interval()->PredSetFunction:
 
 def scaled_interval(eps:float=1e-12)->PredSetFunction:
     def _scaled_interval(y_pred:TensorLike, quantile:float|TensorLike) -> Any:
-        mean_pred = y_pred[:, 0]
-        var_pred = y_pred[:, 1]
+        mean_pred = ops.take(y_pred, 0, axis=-1)
+        var_pred = ops.take(y_pred, 1, axis=-1)
         
         y_low = ops.zeros_like(mean_pred)
         y_high = ops.zeros_like(mean_pred)

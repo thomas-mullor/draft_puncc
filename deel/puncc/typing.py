@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Union, TypeAlias, Protocol, runtime_checkable, Iterable, Callable
+from typing import TYPE_CHECKING, Any, Union, TypeAlias, Protocol, runtime_checkable, Callable
+from collections.abc import Iterable, Sequence
 from deel.puncc.cloning import clone_model
 
 if TYPE_CHECKING:
@@ -24,18 +25,14 @@ class Fitable(Protocol):
 class PredictorLike(Protocol):
     def predict(self, X: Iterable[Any]) -> TensorLike:
         ...
-
-class CallablePredictorMixin(Predictor):
-    def __call__(self, X: Iterable[Any], *args, **kwargs) -> TensorLike:
-        return self.predict(X, *args, **kwargs)
     
-class _PredictorAdapter:
+class _PredictorAdapter(Predictor):
     """Wraps a .predict(...) provider into a callable."""
     def __init__(self, model: PredictorLike) -> None:
         self._model = model
 
-    def __call__(self, x: Iterable[Any], /, *args: Any, **kwargs: Any) -> Any:
-        return self._model.predict(x, *args, **kwargs)
+    def __call__(self, X: Iterable[Any], /, *args: Any, **kwargs: Any) -> Any:
+        return self._model.predict(X, *args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._model, name)
@@ -57,5 +54,5 @@ def make_predictor(model: Union[Predictor, PredictorLike]) -> Predictor:
         return predictor
     raise TypeError("The provided model neither have __call__ nor predict method.")
 
-NCScoreFunction:TypeAlias = Callable[[TensorLike, TensorLike], Iterable[float]]
-PredSetFunction:TypeAlias = Callable[[TensorLike, float|TensorLike], Iterable[Any]]
+NCScoreFunction:TypeAlias = Callable[[TensorLike, TensorLike], Sequence[float]]
+PredSetFunction:TypeAlias = Callable[[TensorLike, float|TensorLike], Sequence[Any]]

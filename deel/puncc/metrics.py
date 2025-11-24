@@ -1,6 +1,6 @@
 from typing import Iterable
 from deel.puncc.typing import TensorLike
-from deel.puncc._keras import ops
+from deel.puncc import ops
 
 def classification_mean_coverage(
     y_true: TensorLike, set_pred: Iterable[Iterable]
