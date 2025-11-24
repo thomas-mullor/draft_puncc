@@ -1,7 +1,14 @@
+from __future__ import annotations
+from pathlib import Path
 from typing import Any, Callable, Iterable
+import pickle
 from deel.puncc.typing import Predictor, PredictorLike, TensorLike, NCScoreFunction, PredSetFunction
 from deel.puncc._keras import ops
 from deel.puncc.api.conformalization_procedure import ConformalizationProcedure
+
+class NoModel(Predictor):
+    def __call__(self, *args, **kwargs):
+        raise RuntimeError("When loading a ConformalPredictor, the model must be set manually after loading. The model was not saved to avoid issues with model serialization. Please set the model attribute of the loaded ConformalPredictor instance to a valid model before using it.")
 
 class ConformalPredictor(ConformalizationProcedure):
     def __init__(self,
@@ -12,7 +19,7 @@ class ConformalPredictor(ConformalizationProcedure):
                  fit_function:Callable[[Predictor, Iterable[Any], TensorLike], Predictor]|None = None):
         # Definition of conformal predictor components :
         super().__init__(model=model)
-        self.nc_scores_function = nc_score_function
+        self.nc_score_function = nc_score_function
         self.pred_set_function = pred_set_function
 
         self.weight_function = weight_function
@@ -36,7 +43,7 @@ class ConformalPredictor(ConformalizationProcedure):
     def calibrate(self, X_calib:Iterable[Any],
                   y_calib:TensorLike):
         predictions = self.model(X_calib)
-        self._nc_scores = self.nc_scores_function(predictions, y_calib)
+        self._nc_scores = self.nc_score_function(predictions, y_calib)
         return self
 
     def fit(self,
@@ -70,6 +77,39 @@ class ConformalPredictor(ConformalizationProcedure):
         prediction_sets = self.pred_set_function(prediction, quantile)
         return prediction, prediction_sets
 
+    def __getstate__(self):
+        state = {}
+        if getattr(self, "__dict__", None):
+            state = self.__dict__.copy()
+        for cls in type(self).mro():
+            slots = getattr(cls, "__slots__", ())
+            if isinstance(slots, str):
+                slots = (slots,)
+            for name in slots:
+                if name == "__dict__":
+                    continue
+                if hasattr(self, name):
+                    state[name] = getattr(self, name)
+        # Remove the model from the state to avoid serialization issues
+        state["model"] = NoModel()
+        return state
+    
+    def __setstate__(self, state):
+        for key, value in state.items():
+            setattr(self, key, value)
+
+    def save(self, path:Path|str)->None:
+        with open(path, "wb") as f:
+            pickle.dump(self.__getstate__(), f)
+
+    @classmethod
+    def load(cls, path:Path|str)->ConformalPredictor:
+        with open(path, "rb") as f:
+            state = pickle.load(f)
+        obj = cls.__new__(cls)
+        obj.__setstate__(state)
+        return obj
+
 class AutoConformalPredictor(ConformalPredictor):
     nc_score_function:NCScoreFunction
     pred_set_function:PredSetFunction
@@ -87,7 +127,7 @@ class ScoreCalibrator():
                  nc_score_function:NCScoreFunction,
                  weight_function:Callable[[Iterable[Any]], Iterable[float]]|None = None):
         # Definition of conformal predictor components :
-        self.nc_scores_function = nc_score_function
+        self.nc_score_function = nc_score_function
         self.weight_function = weight_function
 
         # Utilities for the calibration procedure :
@@ -106,7 +146,7 @@ class ScoreCalibrator():
         return self._nc_scores
 
     def calibrate(self, z_calib:Iterable[Any]):
-        self._nc_scores = self.nc_scores_function(z_calib)
+        self._nc_scores = self.nc_score_function(z_calib)
         return self
 
     def is_conformal(self, z:Iterable[Any], alpha:float)->TensorLike:
@@ -115,6 +155,6 @@ class ScoreCalibrator():
         if self.weight_function is not None:
             weights = self.weight_function(z)
         quantile = ops.weighted_quantile(self.nc_scores, (1 - alpha) * (n + 1) / n, axis=0, weights=weights)
-        test_nonconf_scores = self.nc_scores_function(z)
+        test_nonconf_scores = self.nc_score_function(z)
         return test_nonconf_scores <= quantile
 
