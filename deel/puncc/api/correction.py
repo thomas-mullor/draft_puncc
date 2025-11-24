@@ -1,0 +1,19 @@
+from deel.puncc.typing import TensorLike
+from deel.puncc._keras import ops
+from typing import TypeAlias, Callable
+
+CorrectionFunction:TypeAlias = Callable[[float|TensorLike], float|TensorLike]
+
+def bonferroni(nvars:int=1)->CorrectionFunction:
+    def _bonferroni(alpha: float | TensorLike) -> float | TensorLike:
+        if nvars == 1:
+            return alpha
+        return ops.ones(nvars) * alpha / nvars
+    return _bonferroni
+
+def weighted_bonferroni(weights: TensorLike) -> CorrectionFunction:
+    def _weighted_bonferroni(alpha: float | TensorLike) -> float | TensorLike:
+        # normalization of weights
+        w = weights / ops.sum(weights)
+        return alpha * w
+    return _weighted_bonferroni

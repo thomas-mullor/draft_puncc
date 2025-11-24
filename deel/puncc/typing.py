@@ -58,4 +58,4 @@ def make_predictor(model: Union[Predictor, PredictorLike]) -> Predictor:
     raise TypeError("The provided model neither have __call__ nor predict method.")
 
 NCScoreFunction:TypeAlias = Callable[[TensorLike, TensorLike], Iterable[float]]
-PredSetFunction:TypeAlias = Callable[[TensorLike, float], Any]
+PredSetFunction:TypeAlias = Callable[[TensorLike, float|TensorLike], Iterable[Any]]

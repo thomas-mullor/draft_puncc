@@ -3,10 +3,17 @@ import warnings
 from deel.puncc.typing import TensorLike, NCScoreFunction
 from deel.puncc._keras import ops, random
 
-# TODO : rename stuff in this file to name differently NCS function and NCS function generators.
+def _difference(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+    return y_pred - y_true
 
-def absolute_difference(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+def difference()->NCScoreFunction:
+    return _difference
+
+def _absolute_difference(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
     return ops.abs(y_pred - y_true)
+
+def absolute_difference()->NCScoreFunction:
+    return _absolute_difference
 
 def scaled_ad(eps:float=1e-12)-> NCScoreFunction:
     def _scaled_ad(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
@@ -22,19 +29,28 @@ def scaled_ad(eps:float=1e-12)-> NCScoreFunction:
         return mean_abs_dev[nonneg] / (var_pred[nonneg] + eps)
     return _scaled_ad
 
-def cqr_score(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+def _cqr_score(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
     lower_pred = y_pred[:, 0]
     upper_pred = y_pred[:, 1]
     return ops.maximum(lower_pred - y_true, y_true - upper_pred)
 
-def scaled_bbox_difference(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
-    x_min, y_min, x_max, y_max = ops.unstack(y_pred, axis=1)
+def cqr_score()->NCScoreFunction:
+    return _cqr_score
+
+def _scaled_bbox_difference(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+    x_min, y_min, x_max, y_max = ops.split(y_pred, 4, axis=1)
     dx = ops.abs(x_max - x_min)
     dy = ops.abs(y_max - y_min)
     return (y_pred - y_true) / ops.hstack([dx, dy, dx, dy])
 
-def lac_score(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
+def scaled_bbox_difference()->NCScoreFunction:
+    return _scaled_bbox_difference
+
+def _lac_score(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
     return 1 - y_pred[ops.arange(ops.shape(y_true)[0]), y_true]
+
+def lac_score()->NCScoreFunction:
+    return _lac_score
 
 def raps_score(lambd:float=0, k_reg:int=1, rand:bool=True)->NCScoreFunction:
     def _raps_score(y_pred:TensorLike, y_true:TensorLike) -> Iterable[float]:
@@ -49,4 +65,5 @@ def raps_score(lambd:float=0, k_reg:int=1, rand:bool=True)->NCScoreFunction:
         return s + regul - rand_correction
     return _raps_score
 
-aps_score = raps_score(lambd=0, k_reg=0)
+def aps_score(rand:bool=True)->NCScoreFunction:
+    return raps_score(lambd=1, k_reg=1, rand=rand)

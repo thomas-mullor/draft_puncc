@@ -4,8 +4,12 @@ from deel.puncc.api.conformal_predictor import ConformalPredictor, AutoConformal
 
 
 class SplitCP(AutoConformalPredictor):
-    nc_score_function=absolute_difference
-    pred_set_function=constant_interval
+    nc_score_function=absolute_difference()
+    pred_set_function=constant_interval()
+
+class CQR(AutoConformalPredictor):
+    nc_score_function=cqr_score()
+    pred_set_function=cqr_interval()
 
 # TODO : put the eps somewhere else
 class LocallyAdaptiveCP(ConformalPredictor):
@@ -18,7 +22,3 @@ class LocallyAdaptiveCP(ConformalPredictor):
             pred_set_function=scaled_interval(eps=eps),
             weight_function=weight_function,
         )
-
-class CQR(AutoConformalPredictor):
-    nc_score_function=cqr_score
-    pred_set_function=cqr_interval

@@ -3,12 +3,12 @@ from deel.puncc.api.prediction_sets import lac_set, aps_set, raps_set
 from deel.puncc.api.conformal_predictor import AutoConformalPredictor, ConformalPredictor
 
 class LAC(AutoConformalPredictor):
-    nc_score_function=lac_score
-    pred_set_function=lac_set
+    nc_score_function=lac_score()
+    pred_set_function=lac_set()
 
 class APS(AutoConformalPredictor):
-    nc_score_function=aps_score
-    pred_set_function=aps_set
+    nc_score_function = aps_score()
+    pred_set_function = aps_set(rand=True)
 
 class RAPS(ConformalPredictor):
     # TODO : add random state propagation to control randomized tie breaking

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Iterable, Callable
 from deel.puncc.api.conformalization_procedure import ConformalizationProcedure
 from deel.puncc.typing import Predictor, PredictorLike, TensorLike
-from deel.puncc.api.splitting import KFoldSplitter, BaseSplitter
+from deel.puncc.api.splitting import KFoldSplitter
 from deel.puncc.cloning import clone_model
 from deel.puncc.regression import SplitCP
 from deel.puncc._keras import ops

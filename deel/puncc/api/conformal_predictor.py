@@ -57,11 +57,13 @@ class ConformalPredictor(ConformalizationProcedure):
     def predict(self,
                 X_test:Iterable[Any],
                 alpha:float,
-                correction:Any = ...)->tuple[TensorLike, Any]:
+                correction:Callable|None = None)->tuple[TensorLike, Any]:
         # TODO : apply correction
         prediction = self.model(X_test)
         n = self.len_calibr
         weights = None
+        if correction is not None:
+            alpha = correction(alpha) # TODO : add kwargs ?
         if self.weight_function is not None:
             weights = self.weight_function(X_test)
         quantile = ops.weighted_quantile(self.nc_scores, (1 - alpha) * (n + 1) / n, axis=0, weights=weights)
@@ -109,7 +111,10 @@ class ScoreCalibrator():
 
     def is_conformal(self, z:Iterable[Any], alpha:float)->TensorLike:
         n = self.len_calibr
-        quantile = ops.quantile(self.nc_scores, (1 - alpha) * (n + 1) / n, axis=0, method="higher")
+        weights = None
+        if self.weight_function is not None:
+            weights = self.weight_function(z)
+        quantile = ops.weighted_quantile(self.nc_scores, (1 - alpha) * (n + 1) / n, axis=0, weights=weights)
         test_nonconf_scores = self.nc_scores_function(z)
         return test_nonconf_scores <= quantile
 
