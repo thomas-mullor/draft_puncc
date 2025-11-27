@@ -3,6 +3,9 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from deel.puncc.config import get_backend
+import sys
+
 # TODO : improve this whole module (preferably before it achieves self-awareness) !
 # TODO : add better torch model cloning
 # TODO : add warnings where weights can't or must be cloned !
@@ -17,6 +20,34 @@ from typing import Any
 # TODO : optimize for quantum computers (just in case)
 # TODO : make the module emit confetti on successful clone
 # TODO : add few more TODOs
+
+ML_MODULES = {"torch", "tensorflow", "keras", "sklearn", "transformers", "jax"}
+
+def get_imported_modules() -> set[str]:
+    return set(module.split(".")[0] for module in list(sys.modules.keys()) if module)
+
+def get_imported_ml_modules() -> set[str]:
+    imported = get_imported_modules()
+    return ML_MODULES.intersection(imported)
+
+def get_origin_from_model(obj)->str|None:
+    cls = obj.__class__
+    module = getattr(cls, "__module__", "") or ""
+    name = getattr(cls, "__name__", "") or ""
+    mro = getattr(cls, "__mro__", ()) or ""
+
+    def mro_has(prefix):
+        for c in mro:
+            mod = getattr(c, "__module__", "") or ""
+            if mod.startswith(prefix):
+                return True
+        return False
+
+    for orig in ML_MODULES:
+        if module.startswith(orig) or name.startswith(orig) or mro_has(orig):
+            return orig
+    return None
+
 
 class ModelCannotBeClonedError(RuntimeError):
     poem = """
@@ -45,18 +76,41 @@ def clone_model(
     if hasattr(model, "copy") and callable(getattr(model, "copy")):
         return model.copy()
  
-    for cloner in (
-        _clone_sklearn,
-        _clone_torch,
-        _clone_keras,
-        _clone_hf,
-    ):
+    available_cloners = {
+        "sklearn": _clone_sklearn,
+        "torch": _clone_torch,
+        "keras": _clone_keras,
+        "transformers": _clone_hf,
+        "tensorflow": _clone_keras,
+        "jax": _clone_jax
+    }
+    # filter cloners with imported modules to avoid unnecessary imports
+    available_cloners = {k: v for k, v in available_cloners.items() if k in get_imported_ml_modules()}
+
+    # Try cloner associated to the actually used backend
+    first_guess = get_backend()
+    if first_guess == "numpy":
+        first_guess = "sklearn"
+    # Try cloner associated to the model's origin
+    second_guess = get_origin_from_model(model)
+    for guess in (first_guess, second_guess):
+        if guess in available_cloners:
+            cloner = available_cloners[guess]
+            cloned = cloner(model, clone_weights=clone_weights)
+            if cloned is not None:
+                return cloned
+            available_cloners.pop(guess, None)
+
+    # Try all remaining cloners:
+    for cloner in available_cloners.values():
         cloned = cloner(model, clone_weights=clone_weights)
         if cloned is not None:
             return cloned
     try:
+        # Fallback to deepcopy if no specific cloner worked
         return copy.deepcopy(model)
     except Exception as e:
+        # If even deepcopy fails, raise a custom error
         raise ModelCannotBeClonedError() from e
 
 def _clone_sklearn(model: Any, *, clone_weights:bool=False) -> Any | None:
@@ -138,4 +192,7 @@ def _clone_hf(model: Any) -> Any | None:
         new_m.params = copy.deepcopy(model.params)
         return new_m
     return None
+
+def _clone_jax(model: Any) -> Any | None:
+    raise NotImplementedError("JAX model cloning is not yet implemented, please expose a 'clone' method or use non cross conformal methods.")
 

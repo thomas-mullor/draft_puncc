@@ -13,25 +13,30 @@ else:
 
 @runtime_checkable
 class Predictor(Protocol):
-    def __call__(self, X: Iterable[Any]) -> TensorLike:
+    def __call__(self, X: Iterable[Any], *args, **kwargs) -> TensorLike:
+        ...
+
+@runtime_checkable
+class LambdaPredictor(Predictor):
+    def __call__(self, X:Iterable[Any], lambd:float, *args, **kwargs) -> Any:
         ...
 
 @runtime_checkable
 class Fitable(Protocol):
-    def fit(self, X: Iterable[Any], y: TensorLike):
+    def fit(self, X: Iterable[Any], y: TensorLike, *args, **kwargs) -> Any:
         ...
 
 @runtime_checkable
 class PredictorLike(Protocol):
-    def predict(self, X: Iterable[Any]) -> TensorLike:
+    def predict(self, X: Iterable[Any], *args, **kwargs) -> TensorLike:
         ...
     
-class _PredictorAdapter(Predictor):
+class _PredictorAdapter:
     """Wraps a .predict(...) provider into a callable."""
     def __init__(self, model: PredictorLike) -> None:
         self._model = model
 
-    def __call__(self, X: Iterable[Any], /, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, X: Iterable[Any], *args: Any, **kwargs: Any) -> Any:
         return self._model.predict(X, *args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
@@ -47,7 +52,7 @@ class _PredictorAdapter(Predictor):
         return _PredictorAdapter(clone_model(self._model))
 
 def make_predictor(model: Union[Predictor, PredictorLike]) -> Predictor:
-    if isinstance(model, Predictor):
+    if isinstance(model, (Predictor)):
         return model
     if isinstance(model, PredictorLike):
         predictor = _PredictorAdapter(model)

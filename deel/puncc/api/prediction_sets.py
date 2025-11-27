@@ -7,7 +7,7 @@ from deel.puncc._keras import random
 def _constant_interval(y_pred:TensorLike, quantile:float|TensorLike) -> Any:
     lower_bounds = y_pred - quantile
     upper_bounds = y_pred + quantile
-    return ops.stack([lower_bounds, upper_bounds], axis=0)
+    return ops.stack([lower_bounds, upper_bounds], axis=-1)
 
 def constant_interval()->PredSetFunction:
     return _constant_interval
@@ -26,7 +26,7 @@ def scaled_interval(eps:float=1e-12)->PredSetFunction:
         y_high[nonneg] = mean_pred[nonneg] + quantile * (var_pred[nonneg] + eps)
         y_low[~nonneg] = ops.ninf
         y_high[~nonneg] = ops.inf
-        return ops.stack([y_low, y_high], axis=0)
+        return ops.stack([y_low, y_high], axis=-1)
     return _scaled_interval
 
 def _cqr_interval(y_pred:TensorLike, quantile:float|TensorLike) -> Any:
@@ -34,7 +34,7 @@ def _cqr_interval(y_pred:TensorLike, quantile:float|TensorLike) -> Any:
     upper_pred = y_pred[:, 1]
     y_low = lower_pred - quantile
     y_high = upper_pred + quantile
-    return ops.stack([y_low, y_high], axis=0)
+    return ops.stack([y_low, y_high], axis=-1)
 
 def cqr_interval()->PredSetFunction:
     return _cqr_interval
@@ -78,7 +78,7 @@ def _constant_bbox(y_pred:TensorLike, quantile:float|TensorLike) -> Any:
     x_min_hi, y_min_hi = x_min + quantile[0], y_min + quantile[1]
     x_max_lo, y_max_lo = x_max - quantile[2], y_max - quantile[3]
     Y_pred_lo = ops.hstack([x_min_hi, y_min_hi, x_max_lo, y_max_lo])
-    return ops.stack([Y_pred_lo, Y_pred_hi], axis=0)
+    return ops.stack([Y_pred_lo, Y_pred_hi], axis=-1)
 
 def constant_bbox()->PredSetFunction:
     return _constant_bbox
@@ -108,7 +108,7 @@ def _scaled_bbox(y_pred:TensorLike, quantile:float|TensorLike) -> Any:
     )
     Y_pred_inner = ops.hstack([x_min_hi, y_min_hi, x_max_lo, y_max_lo])
 
-    return ops.stack([Y_pred_inner, Y_pred_outer], axis=0)
+    return ops.stack([Y_pred_inner, Y_pred_outer], axis=-1)
 
 def scaled_bbox():
     return _scaled_bbox

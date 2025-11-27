@@ -12,6 +12,7 @@ def set_backend(name: str) -> None:
     if name not in _VALID:
         raise ValueError(f"Invalid backend: {name!r}. Choose one of: {_VALID}.")
     os.environ["KERAS_BACKEND"] = name
+    _freeze_backend_flag()
 
 def get_backend() -> str|None:
     val = os.environ.get("KERAS_BACKEND")

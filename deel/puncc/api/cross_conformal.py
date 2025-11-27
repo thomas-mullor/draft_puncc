@@ -91,5 +91,5 @@ class CVPlusRegressor(CrossConformalPredictor):
         l_alpha = l_stack[ops.cast(ops.ceil(alpha * (n+1)), int)]
         u_alpha = u_stack[ops.cast(ops.ceil((1 - alpha) * (n+1)), int)]
         # TODO : replace None with some aggregation of point predictions of multiple predictors ?
-        return None, ops.stack([l_alpha, u_alpha], axis=0)
+        return None, ops.stack([l_alpha, u_alpha], axis=-1)
         
